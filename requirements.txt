@@ -1,0 +1,65 @@
+# FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Pydantic settings (compatible version)
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Redis
+redis==5.0.1
+
+# MinIO (S3 compatible)
+minio==7.2.0
+
+# HTTP client
+httpx==0.25.2
+
+# Data processing
+pandas==2.1.4
+numpy==1.24.4
+scikit-learn==1.3.2
+
+# System monitoring
+psutil==5.9.6
+
+# Additional utilities
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Data visualization (from previous requirements)
+plotly>=5.14.0
+seaborn>=0.11.0
+matplotlib>=3.6.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+
+# Legacy MinIO dependency
+boto3>=1.26.0
+
+# For Streamlit compatibility
+streamlit>=1.28.0
+
+# Jupyter for exploration
+jupyter>=1.0.0
+notebook>=6.5.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.28.0
+pydantic>=1.10.0
+
+# Development
+pytest>=7.2.0
+black>=23.0.0
+isort>=5.12.0

@@ -1,0 +1,23 @@
+{
+  "processing_date": "2025-08-13T11:58:41.554935",
+  "total_orders": 114092,
+  "completed_orders": 112037,
+  "unique_customers": 96096,
+  "unique_products": 32951,
+  "product_categories": 73,
+  "date_range": {
+    "start": "2016-09-04T21:15:19",
+    "end": "2018-10-17T17:30:18"
+  },
+  "regions": {
+    "region_1": 92997,
+    "region_2": 19040
+  },
+  "user_item_matrix": {
+    "shape": [
+      93115,
+      73
+    ],
+    "sparsity": 0.9859588857201913
+  }
+}
