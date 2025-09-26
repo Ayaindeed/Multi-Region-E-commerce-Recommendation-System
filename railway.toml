@@ -1,2 +1,5 @@
-# Railway Configuration
-web: streamlit run dashboard.py --server.port $PORT --server.address 0.0.0.0
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "streamlit run dashboard.py --server.port $PORT --server.address 0.0.0.0"
