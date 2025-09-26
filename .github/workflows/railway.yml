@@ -1,19 +1,23 @@
-name: Deploy to Railway
+name: Railway Deployment Info
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  deploy:
+  railway-info:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     
-    - name: Use Railway
+    - name: Railway Deployment Guide
       run: |
-        npm install -g @railway/cli
-        railway login --token ${{ secrets.RAILWAY_TOKEN }}
-        railway up --service streamlit
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        echo "🚂 To deploy to Railway:"
+        echo "1. Go to https://railway.app"
+        echo "2. Connect your GitHub repository"
+        echo "3. Railway will auto-detect the railway.toml config"
+        echo "4. Set environment variables if needed"
+        echo "5. Deploy automatically on push to main"
+        echo ""
+        echo "📄 Railway config found:"
+        cat railway.toml || echo "No railway.toml found"
