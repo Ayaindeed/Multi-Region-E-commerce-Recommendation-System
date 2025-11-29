@@ -7,16 +7,16 @@ An enterprise-grade, distributed e-commerce recommendation platform demonstratin
 ## Screenshots
 
 ### Dashboard Overview
-![Dashboard Overview](assets/Capture%20d'écran%202025-11-29%20190854.png)
+![Dashboard Overview](assets/dashboard_ov.png)
 *Real-time monitoring dashboard showing multi-region health status, API metrics, and performance analytics*
 
 ### Region Health & Performance
-![Region Health](assets/Capture%20d'écran%202025-11-29%20190904.png)
+![Region Health](assets/Performance_Analytics.png)
 *Individual region status cards displaying latency, uptime, and recommendation statistics*
 
-### API Testing Interface
-![API Testing](assets/Capture%20d'écran%202025-11-29%20192229.png)
-*Interactive testing interface for recommendations with real-time performance metrics*
+### Testing 
+![ Testing](assets/Test.png)
+*Interactive testing for recommendations with real-time performance metrics*
 
 ---
 
