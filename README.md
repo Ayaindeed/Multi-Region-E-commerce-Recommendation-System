@@ -408,115 +408,30 @@ For each product:
 - Build sparse matrix and convert to CSR format for fast operations
 
 **Phase 2: Model Training**
-- Calculate user similarity using cosine similarity
-
-# Compute user-user similarity
-# Shape: (96,096, 96,096) - 9.2 billion values!
-# But sparse: only ~1M values > 0.3 threshold
-user_similarity = cosine_similarity(matrix, dense_output=False)
-
-# Apply threshold to reduce noise
-user_similarity[user_similarity < 0.3] = 0
-user_similarity.eliminate_zeros()
-
-# Save model to MinIO
-import pickle
-with open('user_similarity_matrix.pkl', 'wb') as f:
-    pickle.dump(user_similarity, f)
-
-# Upload to MinIO
-minio_client.fput_object(
-    bucket_name='recommendation-models',
-    object_name='user_similarity_v1.pkl',
-    file_path='user_similarity_matrix.pkl'
-)
-```
+- Compute user-user similarity matrix
+- Shape: (96,096, 96,096) - 9.2 billion values
+- Sparse optimization: only ~1M values > 0.3 threshold retained
+- Apply threshold to reduce noise and eliminate zeros
+- Save model to MinIO for distributed access
 
 **Phase 3: Evaluation**
-```python
-from sklearn.metrics import precision_at_k, recall_at_k, ndcg_score
-
-# Test on held-out data (last month of purchases)
-test_users = test_data['customer_id'].unique()
-results = []
-
-for user_id in test_users:
-    # Generate top-10 recommendations
-    recommended = get_recommendations(user_id, k=10)
-    
-    # Get actual purchases in test period
-    actual = test_data[test_data['customer_id'] == user_id]['product_id']
-    
-    # Calculate metrics
-    precision = len(set(recommended) & set(actual)) / len(recommended)
-    recall = len(set(recommended) & set(actual)) / len(actual)
-    results.append({'precision': precision, 'recall': recall})
-
-# Aggregate results
-avg_precision = np.mean([r['precision'] for r in results])  # 0.12
-avg_recall = np.mean([r['recall'] for r in results])        # 0.08
-
-# Industry benchmarks:
-# Precision@10: 0.10-0.15 (acceptable)
-# Recall@10: 0.05-0.10 (expected for sparse data)
-```
+- Test on held-out data (last month of purchases)
+- Calculate precision and recall metrics for top-10 recommendations
+- Results: Precision@10: 0.12, Recall@10: 0.08
+- Industry benchmarks: Precision@10: 0.10-0.15 (acceptable), Recall@10: 0.05-0.10 (expected for sparse data)
 
 ### Cold Start Problem Solutions
 
 **1. New User Cold Start**
-```python
-def get_recommendations_for_new_user(user_id, context=None):
-    """
-    Strategy: Popularity-based + Contextual
-    """
-    # Get globally popular products (last 30 days)
-    popular = db.query("""
-        SELECT product_id, COUNT(*) as purchases
-        FROM orders
-        WHERE order_date > NOW() - INTERVAL '30 days'
-        GROUP BY product_id
-        ORDER BY purchases DESC
-        LIMIT 20
-    """)
-    
-    # If context available (browsing history, location, device)
-    if context and context.get('browsing_category'):
-        # Filter by category
-        popular = popular[popular['category'] == context['browsing_category']]
-    
-    return popular['product_id'].tolist()
-```
+- Strategy: Popularity-based + Contextual recommendations
+- Get globally popular products from last 30 days
+- Filter by browsing context if available (category, location, device)
 
 **2. New Product Cold Start**
-```python
-def recommend_new_product(product_id):
-    """
-    Strategy: Content-based filtering
-    """
-    # Get product features
-    product = db.query(f"SELECT * FROM products WHERE id = {product_id}")
-    
-    # Find similar products by category + price range
-    similar = db.query(f"""
-        SELECT id FROM products
-        WHERE category = '{product['category']}'
-        AND price BETWEEN {product['price'] * 0.8} AND {product['price'] * 1.2}
-        AND id != {product_id}
-        ORDER BY popularity DESC
-        LIMIT 5
-    """)
-    
-    # Recommend to users who purchased similar products
-    target_users = db.query(f"""
-        SELECT DISTINCT customer_id
-        FROM orders
-        WHERE product_id IN ({similar['id'].join(',')})
-        ORDER BY order_date DESC
-        LIMIT 1000
-    """)
-    
-    return target_users
-```
+- Strategy: Content-based filtering
+- Find similar products by category and price range
+- Recommend to users who purchased similar products
+- Target most recent purchasers for initial promotion
 
 ---
 
