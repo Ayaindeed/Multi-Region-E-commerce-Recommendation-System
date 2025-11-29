@@ -268,58 +268,25 @@ product_category_name_translation.csv
 ### Data Processing Pipeline
 
 **Step 1: Data Cleaning & Validation**
-```python
-# Remove duplicates based on (user_id, product_id, timestamp)
-# Handle missing values: 
-#   - product_category: Fill with "outros" (other)
-#   - review_score: Fill with median (4.0)
-# Outlier detection: Remove orders with price > 3 std deviations
-
-Result: 112,650 → 110,234 clean interactions (2% data loss)
-```
+- Remove duplicates based on (user_id, product_id, timestamp)
+- Handle missing values (product_category: "outros", review_score: median 4.0)
+- Outlier detection: Remove orders with price > 3 std deviations
+- Result: 112,650 → 110,234 clean interactions (2% data loss)
 
 **Step 2: Feature Engineering**
-```python
-# Create user features:
-user_features = {
-    'total_orders': count of orders,
-    'avg_order_value': mean purchase price,
-    'favorite_categories': top 3 product categories,
-    'recency': days since last purchase,
-    'frequency': orders per month,
-    'monetary': total spent
-}
 
-# Create product features:
-product_features = {
-    'popularity_score': number of purchases,
-    'avg_rating': mean review score,
-    'price_tier': quartile (budget/mid/premium/luxury),
-    'category_vector': one-hot encoded category
-}
-```
+User features: total_orders, avg_order_value, favorite_categories, recency, frequency, monetary
+
+Product features: popularity_score, avg_rating, price_tier, category_vector
 
 **Step 3: Train-Test Split**
-```python
-# Temporal split (respects time)
-train_data = interactions before 2018-01-01  # 85,000 interactions
-test_data = interactions after 2018-01-01    # 25,234 interactions
-
-# Why temporal? Prevents data leakage
-# We can't use future purchases to predict past behavior
-```
+- Temporal split (respects time): train before 2018-01-01 (85,000), test after (25,234)
+- Prevents data leakage by not using future purchases to predict past behavior
 
 **Step 4: Build Interaction Matrix**
-```python
-# Sparse matrix: users × products
-# Value: 1 if user purchased product, 0 otherwise
-# Dimensions: 96,096 × 32,951 = 3,165,398,496 cells
-# Sparsity: 110,234 / 3,165,398,496 = 0.0035% (very sparse!)
-
-# Use scipy.sparse.csr_matrix for memory efficiency
-# Dense matrix: 3.1B * 8 bytes = 24GB RAM
-# Sparse matrix: 110K * 12 bytes = 1.3MB RAM (18,000x smaller!)
-```
+- Sparse matrix: 96,096 users × 32,951 products = 3,165,398,496 cells
+- Sparsity: 0.0035% (very sparse!)
+- Memory efficiency: Dense matrix = 24GB RAM, Sparse matrix = 1.3MB RAM (18,000x smaller!)
 
 ### Why Collaborative Filtering for This Dataset?
 
@@ -381,19 +348,7 @@ AP-South      | Mumbai        | Asia/Pacific     | < 50ms
 
 ### Health Monitoring
 
-Each region exposes health check endpoints:
-
-```python
-GET /api/v1/health/
-Response: {
-    "status": "healthy",
-    "region": "us-west-1",
-    "latency_ms": 12.3,
-    "cache_hit_ratio": 0.85,
-    "model_loaded": true,
-    "database_connected": true
-}
-```
+Each region exposes health check endpoints that return status information including region name, latency, cache hit ratio, model status, and database connectivity.
 
 Dashboard polls every 10 seconds, alerts if 2+ regions unhealthy.
 
@@ -425,79 +380,35 @@ Similarity = 2 / (sqrt(4) × sqrt(3)) = 2 / 3.46 = 0.577
 ```
 
 2. **Recommendation Score**
-```
-score(product_p, user_u) = Σ(sim(u, v) × rating(v, p)) / Σ|sim(u, v)|
 
 For each product:
 1. Find users who purchased it
 2. Weight their influence by similarity to target user
 3. Normalize by sum of similarities
-```
 
 3. **Implementation Optimizations**
 
 **Sparse Matrix Operations**:
-```python
-from scipy.sparse import csr_matrix
-import numpy as np
-
-# User-item matrix (96K × 33K) stored as sparse
-# Memory: 1.3MB vs 24GB for dense matrix
-interaction_matrix = csr_matrix((values, (row_ind, col_ind)))
-
-# Compute user similarity using dot product
-# sklearn.metrics.pairwise.cosine_similarity handles sparse efficiently
-similarity_matrix = cosine_similarity(interaction_matrix, dense_output=False)
-
-# Result: 96K × 96K similarity matrix (still sparse: 0.1% dense)
-# Only store similarities > 0.3 threshold → 92K values instead of 9.2B
-```
+- User-item matrix (96K × 33K) stored as sparse format
+- Memory: 1.3MB vs 24GB for dense matrix
+- sklearn cosine_similarity handles sparse matrices efficiently
+- Only store similarities > 0.3 threshold → 92K values instead of 9.2B
 
 **Approximate Nearest Neighbors** (for production scale):
-```python
-from annoy import AnnoyIndex
-
-# Build ANN index for fast similarity search
-index = AnnoyIndex(n_features, metric='angular')  # angular = cosine
-for user_id, user_vector in enumerate(user_vectors):
-    index.add_item(user_id, user_vector)
-index.build(n_trees=10)  # More trees = better accuracy, slower build
-
-# Query: Find 50 most similar users in O(log n) instead of O(n)
-similar_users = index.get_nns_by_item(target_user_id, n=50)
-# Speedup: 96K comparisons → ~15 comparisons (6,400x faster!)
-```
+- Build ANN index for fast similarity search using angular metric (cosine)
+- Query finds 50 most similar users in O(log n) instead of O(n)
+- Speedup: 96K comparisons → ~15 comparisons (6,400x faster!)
 
 ### Model Training Pipeline
 
 **Phase 1: Data Preparation**
-```python
-# Load order_items dataset
-df = pd.read_csv('olist_order_items_dataset.csv')
-
-# Create binary interaction matrix
-user_ids = df['customer_id'].unique()  # 96,096 users
-product_ids = df['product_id'].unique()  # 32,951 products
-
-# Map IDs to indices
-user_map = {uid: idx for idx, uid in enumerate(user_ids)}
-product_map = {pid: idx for idx, pid in enumerate(product_ids)}
-
-# Build sparse matrix
-from scipy.sparse import lil_matrix
-matrix = lil_matrix((len(user_ids), len(product_ids)))
-for _, row in df.iterrows():
-    u_idx = user_map[row['customer_id']]
-    p_idx = product_map[row['product_id']]
-    matrix[u_idx, p_idx] = 1
-
-# Convert to CSR for fast operations
-matrix = matrix.tocsr()
-```
+- Load order_items dataset with customer and product IDs
+- Create binary interaction matrix (96,096 users × 32,951 products)
+- Map IDs to indices for matrix operations
+- Build sparse matrix and convert to CSR format for fast operations
 
 **Phase 2: Model Training**
-```python
-from sklearn.metrics.pairwise import cosine_similarity
+- Calculate user similarity using cosine similarity
 
 # Compute user-user similarity
 # Shape: (96,096, 96,096) - 9.2 billion values!
@@ -666,7 +577,7 @@ def recommend_new_product(product_id):
 
 ### Quick Start
 
-\\\powershell
+```powershell
 # Clone repository
 git clone https://github.com/Ayaindeed/Multi-Region-E-commerce-Recommendation-System.git
 cd Multi-Region-E-commerce-Recommendation-System
@@ -679,7 +590,7 @@ docker-compose up -d
 
 # Launch complete system
 python scripts/launchers/launch_complete_demo.py
-\\\
+```
 
 This starts:
 - All 4 regional APIs (ports 8000-8003)
@@ -698,31 +609,27 @@ This starts:
 
 ## Project Structure
 
-\\\
+```
 multi-region-ecommerce-recommendation-system/
-
- app/                          # Core application
-    main.py                   # Full FastAPI app
-    minimal_main.py           # Simplified demo app
-    api/                      # API endpoints
-    core/                     # Configuration
-    models/                   # ML models & schemas
-    utils/                    # Utilities
-
- data/                         # Datasets
-    raw/                      # Olist dataset
-    processed/                # Processed data
-
- scripts/                      # Automation scripts
-    launchers/                # Service launchers
-    setup_minio.py            # MinIO setup
-    test_system.py            # Integration tests
-
- notebooks/                    # Jupyter analysis
- dashboard.py                  # Streamlit dashboard
- docker-compose.yml            # Infrastructure
- requirements.txt              # Dependencies
-\\\
+├── app/                          # Core application
+│   ├── main.py                   # Full FastAPI app
+│   ├── minimal_main.py           # Simplified demo app
+│   ├── api/                      # API endpoints
+│   ├── core/                     # Configuration
+│   ├── models/                   # ML models & schemas
+│   └── utils/                    # Utilities
+├── data/                         # Datasets
+│   ├── raw/                      # Olist dataset
+│   └── processed/                # Processed data
+├── scripts/                      # Automation scripts
+│   ├── launchers/                # Service launchers
+│   ├── setup_minio.py            # MinIO setup
+│   └── test_system.py            # Integration tests
+├── notebooks/                    # Jupyter analysis
+├── dashboard.py                  # Streamlit dashboard
+├── docker-compose.yml            # Infrastructure
+└── requirements.txt              # Dependencies
+```
 
 ---
 
@@ -731,24 +638,24 @@ multi-region-ecommerce-recommendation-system/
 ### Endpoints
 
 **Health Check**
-\\\http
+```http
 GET /api/v1/health/
-\\\
+```
 
 **Get Recommendations**
-\\\http
+```http
 POST /api/v1/recommendations/user/{user_id}
 Content-Type: application/json
 
 {
   "count": 5
 }
-\\\
+```
 
 **Get Statistics**
-\\\http
+```http
 GET /api/v1/recommendations/stats
-\\\
+```
 
 **Interactive Docs**: Visit /docs on any regional API
 
@@ -780,47 +687,24 @@ GET /api/v1/recommendations/stats
 
 ---
 
-## Configuration
 
-Create .env file:
-
-\\\env
-# Application
-REGION=us-west-1
-LOG_LEVEL=INFO
-
-# MinIO
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=password123
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# PostgreSQL
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=password123
-\\\
 
 ---
 
 ## Troubleshooting
 
 ### Python not found
-\\\powershell
+```powershell
 # Use full Python path
-& "\C:\Users\hp\AppData\Local\\Programs\\Python\\Python313\\python.exe" script.py
-\\\
+& "C:\Users\YourUser\AppData\Local\Programs\Python\Python313\python.exe" script.py
+```
 
 ### Port already in use
-\\\powershell
+```powershell
 # Find and kill process
 netstat -ano | findstr :8000
 taskkill /PID <PID> /F
-\\\
+```
 
 ### Dashboard not loading
 - Verify all APIs are running
@@ -828,10 +712,10 @@ taskkill /PID <PID> /F
 - Clear browser cache
 
 ### MinIO connection errors
-\\\ash
+```bash
 # Restart MinIO
 docker-compose restart minio
-\\\
+```
 
 ---
 
