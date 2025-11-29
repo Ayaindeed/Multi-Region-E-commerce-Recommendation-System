@@ -1,8 +1,0 @@
-[build]
-builder = "nixpacks"
-
-[deploy]
-startCommand = "streamlit run dashboard.py --server.port $PORT --server.address 0.0.0.0"
-
-[variables]
-NIXPACKS_PYTHON_VERSION = "3.11"

@@ -1,5 +1,0 @@
-[phases.install]
-cmd = "pip install -r requirements-streamlit.txt"
-
-[phases.start]
-cmd = "streamlit run dashboard.py --server.port $PORT --server.address 0.0.0.0"

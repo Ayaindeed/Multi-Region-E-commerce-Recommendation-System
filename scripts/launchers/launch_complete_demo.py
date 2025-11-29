@@ -17,10 +17,11 @@ class MultiRegionDemo:
         self.processes = []
         self.dashboard_process = None
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.project_root = os.path.dirname(os.path.dirname(self.current_dir))
         
     def signal_handler(self, sig, frame):
         """Handle Ctrl+C gracefully"""
-        print("\n🛑 Shutting down all services...")
+        print("\n[SHUTDOWN] Stopping all services...")
         self.shutdown()
         sys.exit(0)
         
@@ -29,7 +30,7 @@ class MultiRegionDemo:
         try:
             script_path = os.path.join(self.current_dir, script_name)
             if os.path.exists(script_path):
-                print(f"🚀 Starting {region_name} on port {port}...")
+                print(f"[STARTING] {region_name} on port {port}...")
                 process = subprocess.Popen(
                     [sys.executable, script_path],
                     stdout=subprocess.PIPE,
@@ -38,10 +39,10 @@ class MultiRegionDemo:
                 self.processes.append((process, region_name))
                 return True
             else:
-                print(f"❌ Script not found: {script_path}")
+                print(f"[ERROR] Script not found: {script_path}")
                 return False
         except Exception as e:
-            print(f"❌ Error starting {region_name}: {e}")
+            print(f"[ERROR] Error starting {region_name}: {e}")
             return False
     
     def launch_dashboard(self):
@@ -49,9 +50,9 @@ class MultiRegionDemo:
         time.sleep(8)  # Wait for APIs to start
         
         try:
-            dashboard_path = os.path.join(self.current_dir, "dashboard.py")
+            dashboard_path = os.path.join(self.project_root, "dashboard.py")
             if os.path.exists(dashboard_path):
-                print("📊 Starting Dashboard...")
+                print("[STARTING] Dashboard on port 8080...")
                 self.dashboard_process = subprocess.Popen(
                     [sys.executable, "-m", "streamlit", "run", dashboard_path,
                      "--server.port", "8080",
@@ -64,13 +65,13 @@ class MultiRegionDemo:
                 
                 # Wait a bit more then open browser
                 time.sleep(3)
-                print("🌐 Opening dashboard in browser...")
+                print("[INFO] Opening dashboard in browser...")
                 webbrowser.open("http://localhost:8080")
                 
             else:
-                print("❌ Dashboard not found")
+                print("[ERROR] Dashboard not found")
         except Exception as e:
-            print(f"❌ Error starting dashboard: {e}")
+            print(f"[ERROR] Error starting dashboard: {e}")
     
     def check_processes(self):
         """Monitor process health"""
@@ -80,36 +81,36 @@ class MultiRegionDemo:
             # Check API processes
             for i, (process, region_name) in enumerate(self.processes):
                 if process.poll() is not None:
-                    print(f"⚠️  {region_name} has stopped (exit code: {process.poll()})")
+                    print(f"[WARNING] {region_name} has stopped (exit code: {process.poll()})")
             
             # Check dashboard
             if self.dashboard_process and self.dashboard_process.poll() is not None:
-                print(f"⚠️  Dashboard has stopped (exit code: {self.dashboard_process.poll()})")
+                print(f"[WARNING] Dashboard has stopped (exit code: {self.dashboard_process.poll()})")
     
     def shutdown(self):
         """Shutdown all processes"""
-        print("🔄 Terminating API processes...")
+        print("[INFO] Terminating API processes...")
         for process, region_name in self.processes:
             try:
                 process.terminate()
                 process.wait(timeout=5)
-                print(f"✅ {region_name} stopped")
+                print(f"[SUCCESS] {region_name} stopped")
             except subprocess.TimeoutExpired:
                 process.kill()
-                print(f"🔥 {region_name} force stopped")
+                print(f"[FORCE] {region_name} force stopped")
             except Exception as e:
-                print(f"⚠️  Error stopping {region_name}: {e}")
+                print(f"[WARNING] Error stopping {region_name}: {e}")
         
         if self.dashboard_process:
             try:
                 self.dashboard_process.terminate()
                 self.dashboard_process.wait(timeout=5)
-                print("✅ Dashboard stopped")
+                print("[SUCCESS] Dashboard stopped")
             except subprocess.TimeoutExpired:
                 self.dashboard_process.kill()
-                print("🔥 Dashboard force stopped")
+                print("[FORCE] Dashboard force stopped")
             except Exception as e:
-                print(f"⚠️  Error stopping dashboard: {e}")
+                print(f"[WARNING] Error stopping dashboard: {e}")
     
     def run(self):
         """Run the complete demo"""
@@ -117,20 +118,21 @@ class MultiRegionDemo:
         signal.signal(signal.SIGINT, self.signal_handler)
         
         print("=" * 70)
-        print("🌍 Multi-Region E-commerce Recommendation System")
-        print("🚀 Complete Demo Launcher")
+        print("Multi-Region E-commerce Recommendation System")
+        print("Complete Demo Launcher")
         print("=" * 70)
         print()
         
         # Region configurations
         regions = [
-            ("launch_demo.py", "US-West", "8000"),
+            ("launch_us_west.py", "US-West", "8000"),
+            ("launch_demo.py", "US-East", "8001"),
             ("launch_eu_west.py", "EU-West", "8002"),
             ("launch_ap_south.py", "AP-South", "8003")
         ]
         
         # Start regions
-        print("📡 Starting API regions...")
+        print("[INFO] Starting API regions...")
         successful_launches = 0
         
         for script, region, port in regions:
@@ -139,10 +141,10 @@ class MultiRegionDemo:
                 time.sleep(2)  # Small delay between launches
         
         if successful_launches == 0:
-            print("❌ No regions could be started. Exiting.")
+            print("[ERROR] No regions could be started. Exiting.")
             return
         
-        print(f"✅ {successful_launches}/{len(regions)} regions started")
+        print(f"[SUCCESS] {successful_launches}/{len(regions)} regions started")
         print()
         
         # Start dashboard in background thread
@@ -155,24 +157,25 @@ class MultiRegionDemo:
         monitor_thread.daemon = True
         monitor_thread.start()
         
-        print("🎯 System Status:")
-        print("   📡 API Regions: Starting up...")
-        print("   📊 Dashboard: Will launch in ~8 seconds")
-        print("   🌐 Browser: Will open automatically")
+        print("System Status:")
+        print("  - API Regions: Starting up...")
+        print("  - Dashboard: Will launch in ~8 seconds")
+        print("  - Browser: Will open automatically")
         print()
-        print("🔗 Quick Access URLs:")
-        print("   📊 Dashboard: http://localhost:8080")
-        print("   🌴 US-West API: http://localhost:8000")
-        print("   🇪🇺 EU-West API: http://localhost:8002") 
-        print("   🌏 AP-South API: http://localhost:8003")
+        print("Quick Access URLs:")
+        print("  - Dashboard: http://localhost:8080")
+        print("  - US-West API: http://localhost:8000")
+        print("  - US-East API: http://localhost:8001")
+        print("  - EU-West API: http://localhost:8002") 
+        print("  - AP-South API: http://localhost:8003")
         print()
-        print("💡 Tips:")
-        print("   • The dashboard will show real-time region health")
-        print("   • Test recommendations with any user ID")
-        print("   • Compare performance across regions")
-        print("   • Check the API docs at /docs endpoint")
+        print("Usage Tips:")
+        print("  - The dashboard shows real-time region health")
+        print("  - Test recommendations with any user ID")
+        print("  - Compare performance across regions")
+        print("  - Check the API docs at /docs endpoint")
         print()
-        print("⌨️  Press Ctrl+C to stop all services")
+        print("Press Ctrl+C to stop all services")
         print("=" * 70)
         
         # Keep main thread alive

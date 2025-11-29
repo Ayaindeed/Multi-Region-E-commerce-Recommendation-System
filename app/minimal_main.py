@@ -126,13 +126,13 @@ if __name__ == "__main__":
     # Determine port based on region for multi-region simulation
     region = os.getenv("REGION", "us-east-1")
     port_map = {
-        "us-east-1": 8000,
-        "us-west-1": 8001,
+        "us-west-1": 8000,
+        "us-east-1": 8001,
         "eu-west-1": 8002,
         "ap-south-1": 8003
     }
     
-    port = port_map.get(region, 8000)
+    port = port_map.get(region, 8001)
     print(f"Starting {region} server on port {port}")
     print(f"API available at: http://localhost:{port}")
     print(f"Documentation: http://localhost:{port}/docs")

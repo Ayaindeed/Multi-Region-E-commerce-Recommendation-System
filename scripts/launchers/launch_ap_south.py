@@ -16,10 +16,12 @@ from app.minimal_main import app
 import uvicorn
 
 if __name__ == "__main__":
-    print("🌏 Starting Multi-Region E-commerce Recommendation System")
-    print("📍 Region: ap-south-1")
-    print("🌐 Server: http://localhost:8003")
-    print("📖 Docs: http://localhost:8003/docs") 
-    print("❤️ Health: http://localhost:8003/api/v1/health/")
+    print("="*60)
+    print("Multi-Region E-commerce Recommendation System")
+    print("Region: AP-South (ap-south-1)")
+    print("Server: http://localhost:8003")
+    print("API Documentation: http://localhost:8003/docs")
+    print("Health Check: http://localhost:8003/api/v1/health/")
+    print("="*60)
     
     uvicorn.run(app, host="0.0.0.0", port=8003, log_level="info")
